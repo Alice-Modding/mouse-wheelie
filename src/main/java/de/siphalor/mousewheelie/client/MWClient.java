@@ -22,6 +22,7 @@ import de.siphalor.mousewheelie.MWConfig;
 import de.siphalor.mousewheelie.MouseWheelie;
 import de.siphalor.mousewheelie.client.inventory.ToolPicker;
 import de.siphalor.mousewheelie.client.keybinding.*;
+import de.siphalor.mousewheelie.client.util.CreativeSearchOrder;
 import de.siphalor.mousewheelie.client.util.ScrollAction;
 import de.siphalor.mousewheelie.client.util.inject.IContainerScreen;
 import de.siphalor.mousewheelie.client.util.inject.IScrollableRecipeBook;
@@ -30,11 +31,11 @@ import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.event.client.player.ClientPickBlockGatherCallback;
-import net.fabricmc.fabric.api.tool.attribute.v1.FabricToolTags;
 import net.minecraft.block.BlockState;
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.options.KeyBinding;
+import net.minecraft.client.option.KeyBinding;
 import net.minecraft.client.util.InputUtil;
 import net.minecraft.item.*;
 import net.minecraft.util.Identifier;
@@ -49,7 +50,7 @@ public class MWClient implements ClientModInitializer {
 
 	public static final String KEY_BINDING_CATEGORY = "key.categories." + MouseWheelie.MOD_ID;
 
-	public static final KeyBinding OPEN_CONFIG_SCREEN = new OpenConfigScreenKeybinding(new Identifier(MouseWheelie.MOD_ID, "open_config_screen"), InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_M, KEY_BINDING_CATEGORY, new KeyModifiers().setControl(true));
+	public static final KeyBinding OPEN_CONFIG_SCREEN = new OpenConfigScreenKeybinding(new Identifier(MouseWheelie.MOD_ID, "open_config_screen"), InputUtil.Type.KEYSYM, -1, KEY_BINDING_CATEGORY, new KeyModifiers());
 	public static final KeyBinding SORT_KEY_BINDING = new SortKeyBinding(new Identifier(MouseWheelie.MOD_ID, "sort_inventory"), InputUtil.Type.MOUSE, 2, KEY_BINDING_CATEGORY, new KeyModifiers());
 	public static final KeyBinding SCROLL_UP_KEY_BINDING = new ScrollKeyBinding(new Identifier(MouseWheelie.MOD_ID, "scroll_up"), KEY_BINDING_CATEGORY, false);
 	public static final KeyBinding SCROLL_DOWN_KEY_BINDING = new ScrollKeyBinding(new Identifier(MouseWheelie.MOD_ID, "scroll_down"), KEY_BINDING_CATEGORY, true);
@@ -80,30 +81,35 @@ public class MWClient implements ClientModInitializer {
 			Item item = player.getMainHandStack().getItem();
 			int index = -1;
 			if (MWConfig.toolPicking.holdTool && (isTool(item) || isWeapon(item))) {
-				ToolPicker toolPicker = new ToolPicker(player.inventory);
+				ToolPicker toolPicker = new ToolPicker(player.getInventory());
 				if (result.getType() == HitResult.Type.BLOCK && result instanceof BlockHitResult) {
-					index = toolPicker.findToolFor(player.world.getBlockState(((BlockHitResult) result).getBlockPos()));
+					index = toolPicker.findToolFor(player.getWorld().getBlockState(((BlockHitResult) result).getBlockPos()));
 				} else {
 					index = toolPicker.findWeapon();
 				}
 			}
 			if (MWConfig.toolPicking.holdBlock && item instanceof BlockItem && result.getType() == HitResult.Type.BLOCK && result instanceof BlockHitResult) {
-				BlockState blockState = player.world.getBlockState(((BlockHitResult) result).getBlockPos());
+				BlockState blockState = player.getWorld().getBlockState(((BlockHitResult) result).getBlockPos());
 				if (blockState.getBlock() == ((BlockItem) item).getBlock()) {
-					ToolPicker toolPicker = new ToolPicker(player.inventory);
+					ToolPicker toolPicker = new ToolPicker(player.getInventory());
 					index = toolPicker.findToolFor(blockState);
 				}
 			}
-			return index == -1 || index == player.inventory.selectedSlot ? ItemStack.EMPTY : player.inventory.getStack(index);
+			return index == -1 || index == player.getInventory().selectedSlot ? ItemStack.EMPTY : player.getInventory().getStack(index);
+		});
+
+		ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
+			CreativeSearchOrder.refreshItemSearchPositionLookup();
 		});
 	}
 
 	public static boolean isTool(Item item) {
-		return item instanceof ToolItem || item instanceof ShearsItem || FabricToolTags.AXES.contains(item) || FabricToolTags.HOES.contains(item) || FabricToolTags.PICKAXES.contains(item) || FabricToolTags.SHOVELS.contains(item);
+		// TODO: reimplement Fapi tool tags
+		return item instanceof ToolItem || item instanceof ShearsItem;
 	}
 
 	public static boolean isWeapon(Item item) {
-		return item instanceof RangedWeaponItem || item instanceof TridentItem || item instanceof SwordItem || FabricToolTags.SWORDS.contains(item);
+		return item instanceof RangedWeaponItem || item instanceof TridentItem || item instanceof SwordItem;
 	}
 
 	public static double getMouseX() {
@@ -119,7 +125,7 @@ public class MWClient implements ClientModInitializer {
 	}
 
 	public static boolean triggerScroll(double mouseX, double mouseY, double scrollY) {
-		double scrollAmount = scrollY * CLIENT.options.mouseWheelSensitivity;
+		double scrollAmount = scrollY * CLIENT.options.getMouseWheelSensitivity().getValue();
 		ScrollAction result;
 		if (CLIENT.currentScreen instanceof ISpecialScrollableScreen) {
 			result = ((ISpecialScrollableScreen) CLIENT.currentScreen).mouseWheelie_onMouseScrolledSpecial(mouseX, mouseY, scrollAmount);

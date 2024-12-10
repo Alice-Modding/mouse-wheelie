@@ -44,11 +44,11 @@ public abstract class MixinContainer {
 	@Shadow
 	public abstract Slot getSlot(int index);
 
-	@Inject(method = "updateSlotStacks", at = @At(value = "INVOKE", target = "Lnet/minecraft/screen/slot/Slot;setStack(Lnet/minecraft/item/ItemStack;)V", shift = At.Shift.BEFORE), locals = LocalCapture.CAPTURE_FAILSOFT)
-	public void onSlotUpdate(List<ItemStack> itemStacks, CallbackInfo callbackInfo, int index) {
+	@Inject(method = "updateSlotStacks", at = @At(value = "INVOKE", target = "Lnet/minecraft/screen/slot/Slot;setStackNoCallbacks(Lnet/minecraft/item/ItemStack;)V", shift = At.Shift.BEFORE), locals = LocalCapture.CAPTURE_FAILSOFT)
+	public void onSlotUpdate(int i, List<ItemStack> itemStacks, ItemStack cursorStack, CallbackInfo callbackInfo, int index) {
 		//noinspection ConstantConditions
 		if ((Object) this instanceof PlayerScreenHandler && MWConfig.refill.enable && MWConfig.refill.other) {
-			PlayerInventory playerInventory = MinecraftClient.getInstance().player.inventory;
+			PlayerInventory playerInventory = MinecraftClient.getInstance().player.getInventory();
 			Slot targetSlot = getSlot(index);
 			if (targetSlot.inventory != playerInventory) return;
 
@@ -61,8 +61,8 @@ public abstract class MixinContainer {
 		}
 	}
 
-	@Inject(method = "updateSlotStacks", at = @At(value = "INVOKE", target = "Lnet/minecraft/screen/slot/Slot;setStack(Lnet/minecraft/item/ItemStack;)V", shift = At.Shift.AFTER), locals = LocalCapture.CAPTURE_FAILSOFT)
-	public void onSlotUpdated(List<ItemStack> stacks, CallbackInfo callbackInfo, int index) {
+	@Inject(method = "updateSlotStacks", at = @At(value = "INVOKE", target = "Lnet/minecraft/screen/slot/Slot;setStackNoCallbacks(Lnet/minecraft/item/ItemStack;)V", shift = At.Shift.AFTER), locals = LocalCapture.CAPTURE_FAILSOFT)
+	public void onSlotUpdated(int i, List<ItemStack> stacks, ItemStack cursorStack, CallbackInfo callbackInfo, int index) {
 		SlotRefiller.performRefill();
 	}
 

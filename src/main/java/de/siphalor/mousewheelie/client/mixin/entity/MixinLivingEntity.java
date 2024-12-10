@@ -45,7 +45,7 @@ public abstract class MixinLivingEntity {
 	protected void onItemUseFinish(CallbackInfo callbackInfo) {
 		//noinspection ConstantConditions
 		if ((Object) this instanceof PlayerEntity && MWConfig.refill.enable && MWConfig.refill.eat && activeItemStack.isEmpty()) {
-			PlayerInventory playerInventory = ((PlayerEntity) (Object) this).inventory;
+			PlayerInventory playerInventory = ((PlayerEntity) (Object) this).getInventory();
 			activeItemStack.setCount(1);
 			SlotRefiller.scheduleRefillUnchecked(getActiveHand(), playerInventory, activeItemStack.copy());
 			activeItemStack.setCount(0);

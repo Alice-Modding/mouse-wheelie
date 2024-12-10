@@ -35,10 +35,7 @@ import net.minecraft.util.collection.DefaultedList;
 
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Iterator;
-import java.util.Objects;
+import java.util.*;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -304,15 +301,43 @@ public class SlotRefiller {
 	}
 
 	public static class ItemGroupRule extends Rule {
+
+		private static boolean containsBroad(ItemGroup group, ItemStack stack) {
+			return group.contains(stack) || group.contains(stack.getItem().getDefaultStack());
+		}
+
 		@Override
 		boolean matches(ItemStack oldStack) {
-			return MWConfig.refill.rules.itemgroup && oldStack.getItem().getGroup() != null;
+			if (!MWConfig.refill.rules.itemgroup) {
+				return false;
+			}
+			for (ItemGroup group : ItemGroups.getGroups()) {
+				if (containsBroad(group, oldStack)) {
+					return true;
+				}
+			}
+			return false;
 		}
 
 		@Override
 		int findMatchingStack(PlayerInventory playerInventory, ItemStack oldStack) {
-			ItemGroup group = oldStack.getItem().getGroup();
-			return iterateInventory(playerInventory, stack -> stack.getItem().getGroup() == group);
+			List<ItemGroup> checkGroups = new ArrayList<>();
+			for (ItemGroup group : ItemGroups.getGroups()) {
+				if (containsBroad(group, oldStack)) {
+					checkGroups.add(group);
+				}
+			}
+			if (checkGroups.isEmpty()) {
+				return -1;
+			}
+			return iterateInventory(playerInventory, stack -> {
+				for (ItemGroup group : checkGroups) {
+					if (containsBroad(group, stack)) {
+						return true;
+					}
+				}
+				return false;
+			});
 		}
 	}
 
@@ -417,7 +442,7 @@ public class SlotRefiller {
 
 		@Override
 		int findMatchingStack(PlayerInventory playerInventory, ItemStack oldStack) {
-			return playerInventory.method_7371(oldStack);
+			return playerInventory.indexOf(oldStack);
 		}
 	}
 }

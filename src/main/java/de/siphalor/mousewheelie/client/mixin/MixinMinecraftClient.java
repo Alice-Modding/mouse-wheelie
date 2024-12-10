@@ -57,10 +57,10 @@ public abstract class MixinMinecraftClient {
 	public void onItemUsed(CallbackInfo callbackInfo) {
 		boolean refillScheduled = false;
 		if (mainHandStack != null) {
-			refillScheduled = SlotRefiller.scheduleRefillChecked(Hand.MAIN_HAND, player.inventory, mainHandStack, player.getMainHandStack());
+			refillScheduled = SlotRefiller.scheduleRefillChecked(Hand.MAIN_HAND, player.getInventory(), mainHandStack, player.getMainHandStack());
 		}
 		if (!refillScheduled && offHandStack != null) {
-			SlotRefiller.scheduleRefillChecked(Hand.OFF_HAND, player.inventory, offHandStack, player.getOffHandStack());
+			SlotRefiller.scheduleRefillChecked(Hand.OFF_HAND, player.getInventory(), offHandStack, player.getOffHandStack());
 		}
 		SlotRefiller.performRefill();
 		mainHandStack = null;

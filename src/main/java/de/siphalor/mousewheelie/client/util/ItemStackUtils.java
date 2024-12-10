@@ -23,8 +23,7 @@ import net.minecraft.client.item.TooltipContext;
 import net.minecraft.item.DyeableItem;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.screen.ScreenHandler;
+import net.minecraft.nbt.NbtCompound;
 import net.minecraft.text.Text;
 import org.apache.commons.lang3.builder.HashCodeBuilder;
 
@@ -33,10 +32,10 @@ import java.util.Iterator;
 import java.util.Set;
 
 public class ItemStackUtils {
-	private static final CompoundTag EMPTY_COMPOUND = new CompoundTag();
+	private static final NbtCompound EMPTY_COMPOUND = new NbtCompound();
 
 	public static boolean canCombine(ItemStack a, ItemStack b) {
-		return ScreenHandler.canStacksCombine(a, b);
+		return ItemStack.canCombine(a, b);
 	}
 
 	public static int compareEqualItems(ItemStack a, ItemStack b) {
@@ -64,8 +63,8 @@ public class ItemStackUtils {
 
 	private static int compareEqualItems3(ItemStack a, ItemStack b) {
 		// compare tooltips
-		Iterator<Text> tooltipsA = a.getTooltip(null, TooltipContext.Default.NORMAL).iterator();
-		Iterator<Text> tooltipsB = b.getTooltip(null, TooltipContext.Default.NORMAL).iterator();
+		Iterator<Text> tooltipsA = a.getTooltip(null, TooltipContext.Default.BASIC).iterator();
+		Iterator<Text> tooltipsB = b.getTooltip(null, TooltipContext.Default.BASIC).iterator();
 
 		while (tooltipsA.hasNext()) {
 			if (!tooltipsB.hasNext()) {
@@ -112,16 +111,16 @@ public class ItemStackUtils {
 		return Integer.compare(a.getDamage(), b.getDamage());
 	}
 
-	public static CompoundTag getTagOrEmpty(ItemStack stack) {
-		if (stack.hasTag()) {
-			return stack.getTag();
+	public static NbtCompound getTagOrEmpty(ItemStack stack) {
+		if (stack.hasNbt()) {
+			return stack.getNbt();
 		}
 		return EMPTY_COMPOUND;
 	}
 
 	public static boolean areTagsEqualExcept(ItemStack a, ItemStack b, String... keys) {
-		CompoundTag tagA = getTagOrEmpty(a);
-		CompoundTag tagB = getTagOrEmpty(b);
+		NbtCompound tagA = getTagOrEmpty(a);
+		NbtCompound tagB = getTagOrEmpty(b);
 		Set<String> checkedKeys = Sets.newHashSet(keys);
 		if (!areTagsEqualExceptOneSided(tagA, tagB, checkedKeys)) {
 			return false;
@@ -129,7 +128,7 @@ public class ItemStackUtils {
 		return areTagsEqualExceptOneSided(tagB, tagA, checkedKeys);
 	}
 
-	private static boolean areTagsEqualExceptOneSided(CompoundTag tagA, CompoundTag tagB, Set<String> checkedKeys) {
+	private static boolean areTagsEqualExceptOneSided(NbtCompound tagA, NbtCompound tagB, Set<String> checkedKeys) {
 		for (String key : tagA.getKeys()) {
 			if (checkedKeys.contains(key)) {
 				continue;
@@ -152,15 +151,18 @@ public class ItemStackUtils {
 
 	public static boolean areItemsOfSameKind(ItemStack stack1, ItemStack stack2, NbtMatchMode mode) {
 		switch (mode) {
-			case NONE:
+			case NONE -> {
 				return stack1.getItem() == stack2.getItem();
-			case ALL:
+			}
+			case ALL -> {
 				return ItemStack.areEqual(stack1, stack2);
-			case SOME:
+			}
+			case SOME -> {
 				if (!ItemStack.areItemsEqual(stack1, stack2)) {
 					return false;
 				}
 				return areTagsEqualExcept(stack1, stack2, "Damage", "Enchantments");
+			}
 		}
 		return false; // unreachable
 	}
@@ -174,7 +176,7 @@ public class ItemStackUtils {
 			case SOME:
 				HashCodeBuilder hashCodeBuilder = new HashCodeBuilder()
 						.append(stack.getItem());
-				CompoundTag nbt = stack.getTag();
+				NbtCompound nbt = stack.getNbt();
 				if (nbt == null) {
 					return hashCodeBuilder.toHashCode();
 				}

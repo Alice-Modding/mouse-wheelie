@@ -34,8 +34,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(ClientPlayerEntity.class)
 public abstract class MixinClientPlayerEntity extends AbstractClientPlayerEntity {
-	public MixinClientPlayerEntity(ClientWorld clientWorld_1, GameProfile gameProfile_1) {
-		super(clientWorld_1, gameProfile_1);
+	public MixinClientPlayerEntity(ClientWorld world, GameProfile profile) {
+		super(world, profile);
 	}
 
 	@Inject(method = "closeScreen", at = @At("HEAD"))
@@ -47,7 +47,7 @@ public abstract class MixinClientPlayerEntity extends AbstractClientPlayerEntity
 	public void onDropSelectedItem(boolean all, CallbackInfoReturnable<ItemEntity> callbackInfoReturnable) {
 		if (MWConfig.refill.enable && MWConfig.refill.drop) {
 			if (!getMainHandStack().isEmpty()) {
-				SlotRefiller.scheduleRefillUnchecked(Hand.MAIN_HAND, inventory, getMainHandStack().copy());
+				SlotRefiller.scheduleRefillUnchecked(Hand.MAIN_HAND, getInventory(), getMainHandStack().copy());
 			}
 		}
 	}

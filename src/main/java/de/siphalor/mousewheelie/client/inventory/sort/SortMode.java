@@ -17,14 +17,21 @@
 
 package de.siphalor.mousewheelie.client.inventory.sort;
 
+import de.siphalor.mousewheelie.MWConfig;
+import de.siphalor.mousewheelie.client.util.CreativeSearchOrder;
 import de.siphalor.mousewheelie.client.util.ItemStackUtils;
+import de.siphalor.mousewheelie.client.util.StackMatcher;
 import de.siphalor.tweed4.tailor.DropdownMaterial;
 import it.unimi.dsi.fastutil.ints.IntArrays;
+import it.unimi.dsi.fastutil.objects.Object2IntMap;
+import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 import net.minecraft.item.Item;
+import net.minecraft.item.ItemGroups;
 import net.minecraft.item.ItemStack;
-import net.minecraft.util.registry.Registry;
+import net.minecraft.registry.Registries;
 
 import java.util.*;
+import java.util.concurrent.locks.Lock;
 
 public abstract class SortMode implements DropdownMaterial<SortMode> {
 	private static final Map<String, SortMode> SORT_MODES = new HashMap<>();
@@ -32,6 +39,7 @@ public abstract class SortMode implements DropdownMaterial<SortMode> {
 
 	public static final SortMode NONE;
 	public static final SortMode ALPHABET;
+	public static final SortMode CREATIVE;
 	public static final SortMode QUANTITY;
 	public static final SortMode RAW_ID;
 
@@ -79,6 +87,16 @@ public abstract class SortMode implements DropdownMaterial<SortMode> {
 		return "mousewheelie.sortmode." + name.toLowerCase(Locale.ENGLISH);
 	}
 
+	private static void sortByValues(int[] sortIds, ItemStack[] stacks, int[] values) {
+		IntArrays.quickSort(sortIds, (a, b) -> {
+			int cmp = Integer.compare(values[a], values[b]);
+			if (cmp != 0) {
+				return cmp;
+			}
+			return ItemStackUtils.compareEqualItems(stacks[a], stacks[b]);
+		});
+	}
+
 	static {
 		NONE = register("none", new SortMode("none") {});
 		ALPHABET = register("alphabet", new SortMode("alphabet") {
@@ -104,6 +122,47 @@ public abstract class SortMode implements DropdownMaterial<SortMode> {
 					return comp;
 				});
 
+				return sortIds;
+			}
+		});
+		CREATIVE = register("creative", new SortMode("creative") {
+			@Override
+			public int[] sort(int[] sortIds, ItemStack[] stacks, SortContext context) {
+				int[] sortValues = new int[sortIds.length];
+				if (MWConfig.sort.optimizeCreativeSearchSort) {
+					Lock lock = CreativeSearchOrder.getReadLock();
+					lock.lock();
+					for (int i = 0; i < stacks.length; i++) {
+						sortValues[i] = CreativeSearchOrder.getStackSearchPosition(stacks[i]);
+					}
+					lock.unlock();
+				} else {
+					Collection<ItemStack> displayStacks = ItemGroups.getSearchGroup().getDisplayStacks();
+					List<ItemStack> displayStackList;
+					if (displayStacks instanceof List) {
+						displayStackList = (List<ItemStack>) displayStacks;
+					} else {
+						displayStackList = new ArrayList<>(displayStacks);
+					}
+					Object2IntMap<StackMatcher> lookup = new Object2IntOpenHashMap<>(stacks.length);
+					for (int i = 0; i < stacks.length; i++) {
+						final ItemStack stack = stacks[i];
+						sortValues[i] = lookup.computeIfAbsent(StackMatcher.of(stack), matcher -> {
+							int index = displayStackList.indexOf(matcher);
+							if (index == -1) {
+								return lookup.computeIfAbsent(StackMatcher.ignoreNbt(stack), matcher2 -> {
+									int plainIndex = displayStackList.indexOf(matcher2);
+									if (plainIndex == -1) {
+										return Integer.MAX_VALUE;
+									}
+									return plainIndex;
+								});
+							}
+							return index;
+						});
+					}
+				}
+				SortMode.sortByValues(sortIds, stacks, sortValues);
 				return sortIds;
 			}
 		});
@@ -145,16 +204,8 @@ public abstract class SortMode implements DropdownMaterial<SortMode> {
 		RAW_ID = register("raw_id", new SortMode("raw_id") {
 			@Override
 			public int[] sort(int[] sortIds, ItemStack[] stacks, SortContext context) {
-				Integer[] rawIds = Arrays.stream(stacks).map(stack -> stack.isEmpty() ? Integer.MAX_VALUE : Registry.ITEM.getRawId(stack.getItem())).toArray(Integer[]::new);
-
-				IntArrays.quickSort(sortIds, (a, b) -> {
-					int cmp = Integer.compare(rawIds[a], rawIds[b]);
-					if (cmp != 0) {
-						return cmp;
-					}
-					return ItemStackUtils.compareEqualItems(stacks[a], stacks[b]);
-				});
-
+				int[] rawIds = Arrays.stream(stacks).mapToInt(stack -> stack.isEmpty() ? Integer.MAX_VALUE : Registries.ITEM.getRawId(stack.getItem())).toArray();
+				sortByValues(sortIds, stacks, rawIds);
 				return sortIds;
 			}
 		});

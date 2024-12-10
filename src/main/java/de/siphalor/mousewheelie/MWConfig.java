@@ -21,6 +21,7 @@ import com.google.common.base.CaseFormat;
 import de.siphalor.mousewheelie.client.MWClient;
 import de.siphalor.mousewheelie.client.inventory.sort.SortMode;
 import de.siphalor.mousewheelie.client.network.InteractionManager;
+import de.siphalor.mousewheelie.client.util.CreativeSearchOrder;
 import de.siphalor.mousewheelie.client.util.ItemStackUtils;
 import de.siphalor.tweed4.annotated.*;
 import de.siphalor.tweed4.config.ConfigEnvironment;
@@ -55,6 +56,7 @@ public class MWConfig {
 
 		public boolean enableQuickCraft = true;
 
+		@AConfigEntry(comment = "Whether item types should check nbt data.\nThis is for example used by scrolling and drop-clicking.\nNONE disables this, ALL checks for exactly the same nbt and SOME allows for differences in damage and enchantments.")
 		public ItemStackUtils.NbtMatchMode itemKindsNbtMatchMode = ItemStackUtils.NbtMatchMode.SOME;
 
 		public enum HotbarScoping {HARD, SOFT, NONE}
@@ -62,6 +64,9 @@ public class MWConfig {
 		public HotbarScoping hotbarScoping = HotbarScoping.SOFT;
 
 		public boolean betterFastDragging = false;
+
+		@AConfigEntry(comment = "Enables dragging bundles while holding right-click to pick up or put out multiple stacks in a single swipe.")
+		public boolean enableBundleDragging = true;
 
 		@AConfigListener("interaction-rate")
 		public void onReloadInteractionRate() {
@@ -93,10 +98,18 @@ public class MWConfig {
 
 	@AConfigBackground("textures/block/barrel_top.png")
 	public static class Sort {
-		public SortMode primarySort = SortMode.RAW_ID;
+		public SortMode primarySort = SortMode.CREATIVE;
 		public SortMode shiftSort = SortMode.QUANTITY;
 		public SortMode controlSort = SortMode.ALPHABET;
 		public boolean serverAcceleratedSorting = true;
+
+		@AConfigEntry(scope = ConfigScope.SMALLEST)
+		public boolean optimizeCreativeSearchSort = true;
+
+		@AConfigListener("optimize-creative-search-sort")
+		public void onReloadOptimizeCreativeSearchSort() {
+			CreativeSearchOrder.refreshItemSearchPositionLookup();
+		}
 	}
 
 	public static Refill refill = new Refill();
@@ -169,6 +182,22 @@ public class MWConfig {
 			moveConfigEntry(dataObject, general, "enable-alt-dropping", "general", "enable-drop-modifier");
 
 			general.remove("hotbar-scope");
+		}
+	}
+
+	@AConfigFixer("sort")
+	public <V extends DataValue<V, L, O>, L extends DataList<V, L, O>, O extends DataObject<V, L, O>>
+	void fixSortModes(O sort, O mainConfig) {
+		if (!sort.has("optimize-creative-search-sort")) {
+			if (sort.getString("primary-sort", "").equalsIgnoreCase("raw_id")) {
+				sort.set("primary-sort", "creative");
+			}
+			if (sort.getString("shift-sort", "").equalsIgnoreCase("raw_id")) {
+				sort.set("shift-sort", "creative");
+			}
+			if (sort.getString("control-sort", "").equalsIgnoreCase("raw_id")) {
+				sort.set("control-sort", "creative");
+			}
 		}
 	}
 
